@@ -1,0 +1,35 @@
+---
+title: "Projet 1 SY09"
+output: html_notebook
+---
+
+
+
+```{r}
+setwd('Desktop/ProjetSy09/')
+recettes <- read.table('donnees/donnees/recettes-pays.data',header = T,sep = ',',row.names = 1)
+
+recettesX2 <- rbind(recettes[1:50], recettes[1:50])
+
+ACPrecettes <- princomp(recettesX2, scores = T)
+
+plot(ACPrecettes$scores[,1:2])
+
+
+```
+```{r}
+ACPrecettes <- princomp(t(recettes), scores = T)
+
+plot(ACPrecettes$scores[,1:2])
+
+```
+
+
+
+```{r}
+
+
+hierarchy <- hclust(dist(recettes, method = "manhattan"))
+plot(hierarchy)
+```
+

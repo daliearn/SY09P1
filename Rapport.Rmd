@@ -1,0 +1,163 @@
+---
+title: "Projet 1 SY09"
+output: html_notebook
+---
+
+##Exercice 1
+
+```{r}
+#setwd('Desktop/ProjetSy09/')
+recettes <- read.table('donnees/donnees/recettes-pays.data',header = T,sep = ',',row.names = 1)
+
+recettesX2 <- rbind(recettes[1:50], recettes[1:50])
+
+ACPrecettes <- princomp(recettesX2, scores = T)
+
+plot(ACPrecettes$scores[,1:2])
+
+```
+
+```{r}
+#ACPrecettes <- princomp(t(recettes), scores = T)
+
+#plot(ACPrecettes$scores[,1:2])
+
+```
+
+```{r}
+hierarchy <- hclust(dist(recettes, method = "manhattan"))
+plot(hierarchy)
+```
+
+```{r}
+ par(mfrow=c(3,2))
+
+recetteBestKMeans <- list()
+for (i in c(2:7)) {
+  recetteKMeans <- list()
+  for(j in c(1:20)) {
+    km <- list(kmeans(recettes, i))
+    recetteKMeans <- c(recetteKMeans, km)    
+  }
+
+  r <- lapply(recetteKMeans,FUN = function(x) {
+    x$tot.withinss
+  })
+  
+  lapply(r,min)
+  minIndex <- which.min(unlist(r))
+  
+  bestKm <- list(recetteKMeans[[minIndex]])
+  
+  recetteBestKMeans <- c(recetteBestKMeans, bestKm)
+}
+
+# print(recetteBestKMeans)
+
+for(i in c(2:7)) {
+    plot(ACPrecettes$scores[1:26,], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[recetteBestKMeans[[i - 1]]$cluster])
+
+}
+```
+
+```{r}
+continent <- c(1:26)
+continentClusturedRecettes <-cbind(recettes, continent) 
+
+#ASIA
+continentClusturedRecettes[c("Asia", "Chinese", "Thai", "Japanese", "Vietnamese", "Jewish", "MiddleEastern", "Indian"), "continent"] <- 1 
+
+#AFRICA
+continentClusturedRecettes[c("African", "Morrocan", "Cajun_Creole"), "continent"] <- 2
+
+#EUROPE
+continentClusturedRecettes[c("English_Scottish", "Irish", "French", "Scandinavian", "EasternEuropean_Russian", "German", "Greek", "Italian", "Mediterranean", "Spanish_Portuguese", ""), "continent"] <- 3   
+
+#NA
+continentClusturedRecettes[c("America", "Southern_SoolFood", "SouthWestern"), "continent"] <- 4 
+
+#SA
+continentClusturedRecettes[c("Mexican", "Central_SouthAmerican"), "continent"] <- 5 
+
+plot(ACPrecettes$scores, col=c("red", "green", "blue", "black",     "orange", "purple", "pink" )[continentClusturedRecettes[,"continent"]])
+```
+
+Attention : cette representation repose sur une separation continentale et non culturelles -> expertise métier nécessaire
+
+```{r}
+
+recetteEchant <- read.table('donnees/donnees/recettes-echant.data',header = T,sep = ',')
+
+#summary(recetteEchant[2:51])
+# cov(recetteEchant[2:51])
+#print(princomp(recetteEchant[2:51]))
+```
+
+Exemples d'annalyse exploratoire
+
+```{r}
+Trecettes <- t(recetteEchant)
+
+originMatrix <- matrix(data = 0, nrow = length(unique(factor(recetteEchant$origin))), ncol = length(recetteEchant[,1]))
+
+row.names(x = originMatrix) <-  unique(factor(recetteEchant$origin))
+
+for (i in c(1:length(recetteEchant[,1]))) {
+  originMatrix[Trecettes["origin", i], i] <- 1
+}
+
+Trecettes <- rbind(Trecettes[2:51,], originMatrix)
+
+for(i in c(1:length(Trecettes[,1]))) {
+  for (j in c(1:length(Trecettes[1,])))
+    Trecettes[i,j] <- as.numeric(Trecettes[i,j])
+}
+
+#Attention à la métrique utilisée
+
+# TrecettesDist <- dist(Trecettes,method = "binary")
+
+TrecettesDist <- dist(Trecettes[1:50,],method = "binary")
+#Ici on ne prends pas les pays en compte
+
+```
+
+
+```{r}
+
+ingredientClusters <- hclust(1 - TrecettesDist)
+plot(ingredientClusters)
+```
+Quand on ne supprime pas les origines, on a des trucs aberrants du genre grosse distance entre la cuisine japonaise et Asiatique
+
+```{r}
+library(cluster)
+
+for(i in c(1:length(Trecettes[,1]))) {
+  for (j in c(1:length(Trecettes[1,])))
+    Trecettes[i,j] <- as.numeric(Trecettes[i,j])
+}
+
+#TODO faire ça sur plusieurs k différends et avec plusieurs itérations de k medoide a chaque fois
+Trecettes <- Trecettes[1:50,]
+
+# apply(Trecettes, 2, as.numeric)
+# sapply(Trecettes, as.numeric)
+class(Trecettes) <- "numeric"
+storage.mode(Trecettes) <- "numeric"
+
+ACPrecettesEchant <- prcomp(Trecettes)
+plot(ACPrecettesEchant$x[,c(1,2)], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[cluster::pam(TrecettesDist,3)$clustering])
+```
+
+ 
+```{r}
+elbow <- (100 * (ACPrecettesEchant$sdev)^2 / sum(ACPrecettesEchant$sdev^2) )
+#TODO as an histogram
+plot(elbow)
+```
+##Exercice 2
+
+
+
+
