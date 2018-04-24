@@ -6,7 +6,7 @@ output: html_notebook
 ##Exercice 1
 
 ```{r}
-#setwd('Desktop/ProjetSy09/')
+#setwd('Desktop/SY09P1/')
 recettes <- read.table('donnees/donnees/recettes-pays.data',header = T,sep = ',',row.names = 1)
 
 recettesX2 <- rbind(recettes[1:50], recettes[1:50])
@@ -157,6 +157,209 @@ elbow <- (100 * (ACPrecettesEchant$sdev)^2 / sum(ACPrecettesEchant$sdev^2) )
 plot(elbow)
 ```
 ##Exercice 2
+
+```{r}
+
+distXY <- function(X, Y, M=diag(dim(X)[2]))
+{
+  #Put this shit out of function
+  X <- as.matrix(X)
+  Y <- as.matrix(Y)
+  
+  print(M)
+  
+  if (!is.matrix(X))
+  {
+    X <- matrix(X, nrow=1)
+  }
+  if (!is.matrix(Y))
+  {
+    Y <- matrix(Y, nrow=1)
+  }
+  
+  nx <- dim(X)[1]
+  ny <- dim(Y)[1]
+  h.x <- rowSums((X%*%t(chol(M)))^2)
+  h.y <- rowSums((Y%*%t(chol(M)))^2)
+  ones.x <- rep(1, nx)
+  ones.y <- rep(1, ny)
+
+  D2xy <- h.x %*% t(ones.y) - 2 * X %*% M %*% t(Y) + ones.x %*% t(h.y)
+}
+
+
+
+
+
+adaptativeKmeans <- function(X, K, rhoKs = 0, niter = 100, ness = 1, epsilon = 0.00001) {
+  J <- 10000000
+  result <- list()
+  #C'est de la merde change moi ça
+  if (rhoKs == 0) {
+    rhoKs <- array(1, K)
+  }
+
+  for (i in c(1 : ness)) {
+    #initialisation
+    muks <- X[sample(c(1:dim(X)[1]), size = K, replace = FALSE),]
+  
+    Vks <- list()
+    for (j in c(1:length(rhoKs))) {
+        append(Vks, diag(dim(X)[2]))
+        Vks[[j]] <- rhoKs[j] ** (-1 / dim(X)[2]) * diag(dim(X)[2])
+    }
+    itercount <- 0
+    muKsPrec <- muks + epsilon + 1
+    convCriteria <- 0
+    
+  
+    
+    #Computing convergence criteria
+    for (j in c(1: K)) {
+      # print((muks[j,] - muKsPrec[j,])^2)
+      convCriteria <- convCriteria + sum((muks[j,] - muKsPrec[j,])^2)
+    }
+    
+    while(itercount < niter && convCriteria > epsilon) {
+      
+      itercount <- itercount + 1  
+      
+      #Update Mahalanobis distance
+      cluster <- apply(X, MARGIN = 1, FUN = function(x) {
+        clusterDists <- list()
+        for(j in c(1: K)) {
+          
+          x <- matrix(x, nrow = dim(X)[2], ncol = 1)
+          y <- matrix(as.numeric(muks[j,]), nrow = dim(X)[2], ncol = 1)
+          distance <- distXY(t(x), t(y), Vks[[j]])
+          
+          append(clusterDists, array(0, dim = dim(distance)))
+          clusterDists[[j]] <- distance
+        }
+        which.min(clusterDists)
+      })
+
+      #Saving old centers
+      muKsPrec <- muks
+
+      #Updating Vks (Manahobis matrix) and centers
+      for(j in c(1: K)) {
+        Pk <- as.matrix(X[cluster == j,], dimnames = NULL)
+        muks[j,] <- apply(Pk, MARGIN = 2, mean)
+        mu <- matrix(muks[j,], nrow = dim(X)[2], ncol = 1, dimnames = NULL)
+  
+        Vk <- apply(Pk, MARGIN = 1, FUN = function(x) {
+          Xmat <- matrix(x, nrow = dim(X)[2], ncol = 1, dimnames = NULL)
+
+          tmp_diff <- (as.numeric(Xmat) - as.numeric(mu))
+          tmp_diff <- matrix(tmp_diff, nrow = dim(X)[2], ncol = 1)
+          tmp_diff <- tmp_diff %*% t(tmp_diff)
+        })
+        # print(Vk)
+        Vk <- matrix(rowMeans(Vk), ncol = dim(X)[2], nrow = dim(X)[2])
+        # print(( (rhoKs[j] * det(Vk))^(-1/dim(X)[2]) ) * Vk)
+        Vks[[j]] <- ( (rhoKs[j] * det(Vk))^(-1/dim(X)[2]) ) * Vk
+      }
+
+      #Calculate Convergence criteria
+      convCriteria <- 0
+      
+      for (j in c(1: K)) {
+        convCriteria <- convCriteria + sum((muks[j,] - muKsPrec[j,])^2)
+      }
+
+      #Calculate totalDist
+      dtot <- array(0, K)
+      for(j in c(1: K)) {
+        Pk <- as.matrix(X[cluster == j,])
+        dtot[j] <- dtot[j] + sum(apply(Pk, MARGIN = 1, FUN = function(x) {
+          x <- matrix(x, nrow = dim(X)[2], ncol = 1)
+          y <- matrix(as.numeric(muks[j,]), nrow = dim(X)[2], ncol = 1)
+          distXY(t(x), t(y), Vks[[j]])
+        }))
+      }
+    }
+    Jprec <- J
+    J <- sum(dtot)
+    if(J < Jprec) {
+      result <- list("J" = J,"i" = i,"cluster" = cluster,"centers" = muks,"CovMatrices" = Vks)
+    }
+  }
+  return(result)
+}
+
+```
+
+```{r}
+#library(mclust)
+par(mfrow=c(1,2))
+
+X <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/Synth1.csv", header=T, row.names=1)
+z <- X[,3]
+X <- X[,-3]
+
+plot(X, col = c("red", "blue")[kmeans(X, 2)$cluster])
+plot(X, col = c("red", "blue")[adaptativeKmeans(X, 2)$cluster])
+
+
+
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+X <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/Synth2.csv", header=T, row.names=1)
+z <- X[,3]
+X <- X[,-3]
+
+plot(X, col = c("red", "blue")[kmeans(X, 2)$cluster])
+plot(X, col = c("red", "blue")[adaptativeKmeans(X, 2)$cluster])
+
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+X <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/Synth3.csv", header=T, row.names=1)
+z <- X[,3]
+X <- X[,-3]
+
+plot(X, col = c("red", "blue")[kmeans(X, 2)$cluster])
+plot(X, col = c("red", "blue")[adaptativeKmeans(X, 2)$cluster])
+
+```
+
+
+```{r}
+#TODO verifier que Nb essai marchez bien (c'est pas encore le cas)
+```
+
+  
+```{r}
+par(mfrow=c(4,2))
+
+data(iris)
+X <- iris[,1:4]
+z <- iris[,5]
+  
+ACPIris <- princomp(X)
+
+for (i in c(2:5)) {
+  km <- kmeans(X, i)
+  plot(ACPIris$scores[,1:2], col = c("red", "blue", "green", "black", "orange")[km$cluster])
+  title(toString(km$tot.withinss))
+  
+  akm <- adaptativeKmeans(X, i)
+  plot(ACPIris$scores[,1:2], col = c("red", "blue", "green", "black", "orange")[akm$cluster])
+  title(akm$J)
+}
+```
+Bon ca marche pas tout le temps à cause des def positive mais a force d'essayer ca passe et l'inertie est pas ouf
+
+```{r}
+
+```
+
 
 
 
