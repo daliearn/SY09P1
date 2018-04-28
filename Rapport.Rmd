@@ -165,9 +165,7 @@ distXY <- function(X, Y, M=diag(dim(X)[2]))
   #Put this shit out of function
   X <- as.matrix(X)
   Y <- as.matrix(Y)
-  
-  print(M)
-  
+
   if (!is.matrix(X))
   {
     X <- matrix(X, nrow=1)
@@ -183,11 +181,9 @@ distXY <- function(X, Y, M=diag(dim(X)[2]))
   h.y <- rowSums((Y%*%t(chol(M)))^2)
   ones.x <- rep(1, nx)
   ones.y <- rep(1, ny)
-
+  
   D2xy <- h.x %*% t(ones.y) - 2 * X %*% M %*% t(Y) + ones.x %*% t(h.y)
 }
-
-
 
 
 
@@ -255,9 +251,12 @@ adaptativeKmeans <- function(X, K, rhoKs = 0, niter = 100, ness = 1, epsilon = 0
           tmp_diff <- matrix(tmp_diff, nrow = dim(X)[2], ncol = 1)
           tmp_diff <- tmp_diff %*% t(tmp_diff)
         })
-        # print(Vk)
-        Vk <- matrix(rowMeans(Vk), ncol = dim(X)[2], nrow = dim(X)[2])
-        # print(( (rhoKs[j] * det(Vk))^(-1/dim(X)[2]) ) * Vk)
+        #############################################
+        #BUG ICI DES FOIS sur le rowMeans
+        rMeanVk <- matrix(rowMeans(x = Vk), ncol = dim(X)[2], nrow = dim(X)[2])
+        Vk <- matrix(rMeanVk, ncol = dim(X)[2], nrow = dim(X)[2])
+        #############################################
+        
         Vks[[j]] <- ( (rhoKs[j] * det(Vk))^(-1/dim(X)[2]) ) * Vk
       }
 
@@ -355,12 +354,61 @@ for (i in c(2:5)) {
 }
 ```
 Bon ca marche pas tout le temps à cause des def positive mais a force d'essayer ca passe et l'inertie est pas ouf
+Plus étonnant encore, quand on fout des print() ca marche plus souvent ... Il se peut que R parrallelise les calculs et que certaines matrices incolmplètes soient utilisées
+
+
+Faut aussi voir si le ness fait varier (la proba de pas avoir d'erreur va baisser également)
+
+A faire pour le kmean aussi
+
+```{r}
+
+Spam <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/spam.csv", header=T, row.names=1)
+X <- Spam[,-58]
+z <- Spam[,58]
+
+
+X <- scale(X)
+
+X <- X[sample(c(1:dim(X)[1]), size = 300, replace = FALSE),]
+
+ACPSpam <- princomp(X)
+
+plot(ACPSpam$scores[,1:2])
+
+```
+
+```{r}
+spamPlot <- ACPSpam$scores[,1:2]
+
+spamPlot <- spamPlot - colMeans(spamPlot)
+
+dist <- spamPlot[,1] * spamPlot[,1] + spamPlot[,2] * spamPlot[,2]
+
+dist <- matrix(dist, ncol = 1)
+
+spamPlot <- as.matrix(spamPlot)
+
+spamPlot <- cbind(spamPlot, dist)
+
+indexesToRemove <- order(spamPlot[,3],decreasing = TRUE)[1:30]
+
+indexesToRemove <- - indexesToRemove
+
+spamPlot <- spamPlot[indexesToRemove,]
+
+plot(spamPlot, col = c("red", "blue")[adaptativeKmeans(spamPlot[,1:2], 2)$cluster])
+```
+
+Il faut tej les valeurs aberrrantes (TP de term en chimie)
+
+(essayer 3DPLOT)
+
+## Justification
 
 ```{r}
 
 ```
-
-
 
 
 
