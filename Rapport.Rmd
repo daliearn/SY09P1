@@ -5,29 +5,53 @@ output: html_notebook
 
 ##Exercice 1
 
+###Question 1 : Annalyse exploratoire des données
+```{r}
+recettes <- read.table('donnees/donnees/recettes-pays.data',header = T,sep = ',',row.names = 1)
+#summary(recettes)
+
+boxplot(recettes)
+```
+```{r}
+rownames(recettes)
+```
+On remarque que les différentes individus correspondent à la fréquence d'utilisation de certains aliments dans une région donnée, certains aliments étant bien plus utilisés que d'autres
+
+```{r}
+#cor(recettes)
+```
+
+###Question 2
+
 ```{r}
 #setwd('Desktop/SY09P1/')
-recettes <- read.table('donnees/donnees/recettes-pays.data',header = T,sep = ',',row.names = 1)
 
-recettesX2 <- rbind(recettes[1:50], recettes[1:50])
 
-ACPrecettes <- princomp(recettesX2, scores = T)
+ACPrecettes <- prcomp(recettes,scale. = T)
 
-plot(ACPrecettes$scores[,1:2])
-
-```
-
-```{r}
-#ACPrecettes <- princomp(t(recettes), scores = T)
-
-#plot(ACPrecettes$scores[,1:2])
+plot(ACPrecettes$x[,1:2])
+text(ACPrecettes$x[,1:2], rownames(recettes), pos = 1)
+plot(ACPrecettes$x[,c(1,3)])
+text(ACPrecettes$x[,c(1,3)], rownames(recettes), pos = 1)
+plot(ACPrecettes$x[,2:3])
+text(ACPrecettes$x[,2:3], rownames(recettes), pos = 1)
 
 ```
+On distingue deux voire trois groupes de manière plus ou moins distincte
+On pourrait y voir les plats Asiatiques, les plats d'Europe du Nord et les plats méditerranéens confondus avec les plats réputés épicés
+
+###Question 3
 
 ```{r}
+#install.packages("dendextend")
+library(dendextend)
 hierarchy <- hclust(dist(recettes, method = "manhattan"))
-plot(hierarchy)
+plot(color_labels(hierarchy, k = 5), main = "Dendogrammes des origines")
+
 ```
+On retrouve les 3 classes décrites avant dans le dendogramme ci-dessus
+
+###Question 4
 
 ```{r}
  par(mfrow=c(3,2))
@@ -55,10 +79,13 @@ for (i in c(2:7)) {
 # print(recetteBestKMeans)
 
 for(i in c(2:7)) {
-    plot(ACPrecettes$scores[1:26,], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[recetteBestKMeans[[i - 1]]$cluster])
+    plot(ACPrecettes$x[1:26,], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[recetteBestKMeans[[i - 1]]$cluster])
 
 }
 ```
+On prends à chaque fois la meilleure des clusterisations sur 20 essais et ce pour une clusterisation de 2 à 7 classes. Jusqu'à 5 classes, les resultats sopnt très nets.
+
+### Question 5
 
 ```{r}
 continent <- c(1:26)
@@ -79,21 +106,30 @@ continentClusturedRecettes[c("America", "Southern_SoolFood", "SouthWestern"), "c
 #SA
 continentClusturedRecettes[c("Mexican", "Central_SouthAmerican"), "continent"] <- 5 
 
-plot(ACPrecettes$scores, col=c("red", "green", "blue", "black",     "orange", "purple", "pink" )[continentClusturedRecettes[,"continent"]])
+plot(ACPrecettes$x, col=c("red", "green", "blue", "black",     "orange", "purple", "pink" )[continentClusturedRecettes[,"continent"]])
 ```
-
+On obtient des différences entre les deux groupements
 Attention : cette representation repose sur une separation continentale et non culturelles -> expertise métier nécessaire
+
+###Question 6
 
 ```{r}
 
 recetteEchant <- read.table('donnees/donnees/recettes-echant.data',header = T,sep = ',')
 
+summary(recetteEchant)
+head(recetteEchant)
+
 #summary(recetteEchant[2:51])
-# cov(recetteEchant[2:51])
+#cov(recetteEchant[2:51])
 #print(princomp(recetteEchant[2:51]))
 ```
 
-Exemples d'annalyse exploratoire
+RecetteEchant est en fait la source qui a été agrégée sur les origines pour la première partie.
+
+En effet, les observations sont composées de 0 et de 1 qui font office de booléen pour savoir si une recette utilise tel ou tel ingrédient.
+
+###Question 7
 
 ```{r}
 Trecettes <- t(recetteEchant)
@@ -119,16 +155,21 @@ for(i in c(1:length(Trecettes[,1]))) {
 
 TrecettesDist <- dist(Trecettes[1:50,],method = "binary")
 #Ici on ne prends pas les pays en compte
-
 ```
+Ici on perd toute information relative aux origines.
+Quand on ne supprime pas les origines, on trouve des informations aberrantes comme de grosses distances entre la cuisine japonaise et Asiatique
 
+
+On utilise la distance binnaire puisqu'on a des valeurs psuudo booléenne. Cela permet d'avoir des distances entre 0 et 1 ce qui est logique quant à la matrice de départ.
+
+###Question 8
 
 ```{r}
 
 ingredientClusters <- hclust(1 - TrecettesDist)
-plot(ingredientClusters)
+plot(color_labels(ingredientClusters, k = 4))
 ```
-Quand on ne supprime pas les origines, on a des trucs aberrants du genre grosse distance entre la cuisine japonaise et Asiatique
+
 
 ```{r}
 library(cluster)
@@ -141,15 +182,36 @@ for(i in c(1:length(Trecettes[,1]))) {
 #TODO faire ça sur plusieurs k différends et avec plusieurs itérations de k medoide a chaque fois
 Trecettes <- Trecettes[1:50,]
 
+
+agregation <- aggregate(recetteEchant[,-1], by = list(Origin = recetteEchant$origin), FUN = sum)
+recetteAgregation <- (t(as.data.frame(x = agregation, colnames = agregation$Originrigin))[-1,])
+
+
 # apply(Trecettes, 2, as.numeric)
 # sapply(Trecettes, as.numeric)
 class(Trecettes) <- "numeric"
 storage.mode(Trecettes) <- "numeric"
 
-ACPrecettesEchant <- prcomp(Trecettes)
-plot(ACPrecettesEchant$x[,c(1,2)], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[cluster::pam(TrecettesDist,3)$clustering])
+ACPrecettesEchant <- prcomp(Trecettes[1:50,])
+
+TrecettesDist <- dist(recetteAgregation,method = "manhattan")
+
+PAMrecetteEchant <- cluster::pam(TrecettesDist,k = 3, metric = "manhattan", diss = T)$clustering
+
+for(i in c(1:length(recetteAgregation[,1]))) {
+  for (j in c(1:length(recetteAgregation[1,])))
+    recetteAgregation[i,j] <- as.numeric(recetteAgregation[i,j])
+}
+
+
+cluster::clusplot(as.data.frame(recetteAgregation),PAMrecetteEchant) 
 ```
 
+```{r}
+head(as.data.frame(recetteAgregation))
+```
+
+Cette clusterisation n'est pas très utiles vu le peu d'inertie expliquée par les deux axes
  
 ```{r}
 elbow <- (100 * (ACPrecettesEchant$sdev)^2 / sum(ACPrecettesEchant$sdev^2) )
