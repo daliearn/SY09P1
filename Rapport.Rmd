@@ -496,11 +496,3 @@ plot(spamPlot, col = c("red", "blue")[adaptativeKmeans(ACPSpam$scores[indexesToR
 
 > Il est compliqué de travailler sur ce Dataset puisque de nombreux facteurs entrent en jeux, certains rendant la matrice colinéaire et empêchant le bon déroulement de AdaptativeKmMean. On pourrait essayer de ne garder que les composantes a haute variance pour faire l'ACP.
 
-## Justification
-
-```{r}
-
-```
-
-
-
