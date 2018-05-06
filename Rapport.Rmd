@@ -5,34 +5,71 @@ output: html_notebook
 
 ##Exercice 1
 
+###Question 1 : Annalyse exploratoire des données
 ```{r}
-#setwd('Desktop/ProjetSy09/')
 recettes <- read.table('donnees/donnees/recettes-pays.data',header = T,sep = ',',row.names = 1)
+```
 
-recettesX2 <- rbind(recettes[1:50], recettes[1:50])
 
-ACPrecettes <- princomp(recettesX2, scores = T)
+```{r}
+head(recettes)
+```
+> Ces données sont faites de valeures comprises entre 0 et 1 avec en individu des origines géographiques et en variables ce qui s'apparente à des proportions d'utilisation. L'objecti de ce travail va être d'étudier les groupements possibles entre les individus.
 
-plot(ACPrecettes$scores[,1:2])
+
+```{r}
+boxplot(recettes)
+```
+
+> Certains aliments sont globalement bien plus utilisés que d'autres.
+
+```{r}
+head(as.data.frame(cor(recettes)))
+```
+
+> Certaines valeurs semblent être fortement corrélées entre elles et d'autres absolument pas. Le gingembre et la sauce Soja ainsi que l'huilde d'olive et le piment de Cayenne l'illustrent bien. 
+
+###Question 2
+
+```{r}
+recettes.ACP <- prcomp(recettes,scale. = T)
+
+plot(recettes.ACP$x[,1:2])
+text(recettes.ACP$x[,1:2], rownames(recettes), pos = 1)
 
 ```
 
 ```{r}
-#ACPrecettes <- princomp(t(recettes), scores = T)
-
-#plot(ACPrecettes$scores[,1:2])
-
+plot(recettes.ACP$x[,c(1,3)])
+text(recettes.ACP$x[,c(1,3)], rownames(recettes), pos = 1)
 ```
 
 ```{r}
-hierarchy <- hclust(dist(recettes, method = "manhattan"))
-plot(hierarchy)
+plot(recettes.ACP$x[,2:3])
+text(recettes.ACP$x[,2:3], rownames(recettes), pos = 1)
 ```
 
-```{r}
- par(mfrow=c(3,2))
 
-recetteBestKMeans <- list()
+>On distingue deux voire trois groupes de manière plus ou moins distincte
+On pourrait y voir les plats Asiatiques, les plats d'Europe du Nord et les plats méditerranéens confondus avec les plats réputés épicés
+
+###Question 3
+
+```{r}
+library(dendextend)
+recettes.dist <- dist(recettes, method = "manhattan")
+recettes.hierarchy <- hclust(recettes.dist)
+plot(color_labels(recettes.hierarchy, k = 5), main = "Dendogrammes des origines")
+
+```
+> On retrouve les 3 classes décrites avant dans le dendogramme ci-dessus. Le dernier groupe un peu fourre tout a été séparé en des classes plus distinctes
+
+###Question 4
+
+```{r}
+par(mfrow=c(1,2))
+
+recette.kMeans <- list()
 for (i in c(2:7)) {
   recetteKMeans <- list()
   for(j in c(1:20)) {
@@ -49,115 +86,421 @@ for (i in c(2:7)) {
   
   bestKm <- list(recetteKMeans[[minIndex]])
   
-  recetteBestKMeans <- c(recetteBestKMeans, bestKm)
+  recette.kMeans <- c(recette.kMeans, bestKm)
 }
 
-# print(recetteBestKMeans)
-
-for(i in c(2:7)) {
-    plot(ACPrecettes$scores[1:26,], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[recetteBestKMeans[[i - 1]]$cluster])
-
+for(i in c(2:3)) {
+    plot(recettes.ACP$x[1:26,], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[recette.kMeans[[i - 1]]$cluster], main = i)
 }
 ```
 
 ```{r}
-continent <- c(1:26)
-continentClusturedRecettes <-cbind(recettes, continent) 
+par(mfrow=c(1,2))
 
-#ASIA
-continentClusturedRecettes[c("Asia", "Chinese", "Thai", "Japanese", "Vietnamese", "Jewish", "MiddleEastern", "Indian"), "continent"] <- 1 
-
-#AFRICA
-continentClusturedRecettes[c("African", "Morrocan", "Cajun_Creole"), "continent"] <- 2
-
-#EUROPE
-continentClusturedRecettes[c("English_Scottish", "Irish", "French", "Scandinavian", "EasternEuropean_Russian", "German", "Greek", "Italian", "Mediterranean", "Spanish_Portuguese", ""), "continent"] <- 3   
-
-#NA
-continentClusturedRecettes[c("America", "Southern_SoolFood", "SouthWestern"), "continent"] <- 4 
-
-#SA
-continentClusturedRecettes[c("Mexican", "Central_SouthAmerican"), "continent"] <- 5 
-
-plot(ACPrecettes$scores, col=c("red", "green", "blue", "black",     "orange", "purple", "pink" )[continentClusturedRecettes[,"continent"]])
+for(i in c(4:5)) {
+    plot(recettes.ACP$x[1:26,], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[recette.kMeans[[i - 1]]$cluster], main = i)
+}
 ```
 
-Attention : cette representation repose sur une separation continentale et non culturelles -> expertise métier nécessaire
+```{r}
+par(mfrow=c(1,2))
+
+for(i in c(6:7)) {
+    plot(ACPrecettes$x[1:26,], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[recetteBestKMeans[[i - 1]]$cluster], main = i)
+}
+```
+
+> On prends à chaque fois la meilleure des clusterisations sur 20 essais et ce pour une clusterisation de 2 à 7 classes. Jusqu'à 5 classes, les resultats sont très nets.
+
+> La séparation semble pertinente jusqu' 3 voire 4 classes. Après, cela semble relever de différences moindres. On a même une classe ne contenant qu'une seule valeure pour une itération avec 7 classes.
+
+### Question 5
+
+```{r}
+continent <- c(1:26)
+continent.cluster <-cbind(recettes, continent) 
+
+#ASIA
+continent.cluster[c("Asia", "Chinese", "Thai", "Japanese", "Vietnamese", "Jewish", "MiddleEastern", "Indian"), "continent"] <- 1 
+
+#AFRICA
+continent.cluster[c("African", "Morrocan", "Cajun_Creole"), "continent"] <- 2
+
+#EUROPE
+continent.cluster[c("English_Scottish", "Irish", "French", "Scandinavian", "EasternEuropean_Russian", "German", "Greek", "Italian", "Mediterranean", "Spanish_Portuguese", ""), "continent"] <- 3   
+
+#NA
+continent.cluster[c("America", "Southern_SoolFood", "SouthWestern"), "continent"] <- 4 
+
+#SA
+continent.cluster[c("Mexican", "Central_SouthAmerican"), "continent"] <- 5 
+
+plot(recettes.ACP$x, col=c("red", "green", "blue", "black",     "orange", "purple", "pink" )[continent.cluster[,"continent"]], main = ("Groupement géographique des recettes"))
+```
+>On obtient des différences notables entre les deux groupements.
+Cela s'explique facilement,  cette representation repose sur une séparation continentale et non culturelle. Une expertise métier serait donc nécessaire pour faire mieux ces groupements. (Bassin Mediterranéen, Asie de L'est ...)
+
+###Question 6
 
 ```{r}
 
 recetteEchant <- read.table('donnees/donnees/recettes-echant.data',header = T,sep = ',')
 
-#summary(recetteEchant[2:51])
-# cov(recetteEchant[2:51])
-#print(princomp(recetteEchant[2:51]))
+head(recetteEchant)
+
 ```
 
-Exemples d'annalyse exploratoire
+```{r}
+summary(recetteEchant)
+```
+
+> Les observations sont composées de 0 et de 1 qui font office de booléen pour savoir si une recette utilise tel ou tel ingrédient.
+RecetteEchant est donc la source qui a été agrégée sur les origines pour la première partie de l'exercice
+Attention, il semblerait que quelques origines concentre une grande partie des observations : 745 observations sur 2000 pour les recettes Américaines.
+
+###Question 7
 
 ```{r}
-Trecettes <- t(recetteEchant)
+recetteEchant.t <- t(recetteEchant)
 
+#On essaye de coder les variables qualitatives que sont les origines en une matrice de 0 et 1
 originMatrix <- matrix(data = 0, nrow = length(unique(factor(recetteEchant$origin))), ncol = length(recetteEchant[,1]))
-
 row.names(x = originMatrix) <-  unique(factor(recetteEchant$origin))
 
 for (i in c(1:length(recetteEchant[,1]))) {
-  originMatrix[Trecettes["origin", i], i] <- 1
+  originMatrix[recetteEchant.t["origin", i], i] <- 1
 }
 
-Trecettes <- rbind(Trecettes[2:51,], originMatrix)
+recetteEchant.t <- rbind(recetteEchant.t[2:51,], originMatrix)
 
-for(i in c(1:length(Trecettes[,1]))) {
-  for (j in c(1:length(Trecettes[1,])))
-    Trecettes[i,j] <- as.numeric(Trecettes[i,j])
+for(i in c(1:length(recetteEchant.t[,1]))) {
+  for (j in c(1:length(recetteEchant.t[1,])))
+    recetteEchant.t[i,j] <- as.numeric(recetteEchant.t[i,j])
 }
 
-#Attention à la métrique utilisée
-
-# TrecettesDist <- dist(Trecettes,method = "binary")
-
-TrecettesDist <- dist(Trecettes[1:50,],method = "binary")
 #Ici on ne prends pas les pays en compte
-
+recetteEchant.t.dist <- dist(recetteEchant.t[1:50,],method = "binary")
 ```
 
+>L'idée est de prendre la matrice transposée afin d'obtenir un tableau qui pour chaque ingrédient nous dit s'il a été observé lors d'une observation i. Avec cette information on calcul la matrice de distance entre chaque ingrédient. On choisit une distance binaire celle ci étant construite sur des proportion de bit True et non sur une somme. On s'affranchit ainsi des problèmes liés à la sur représentation de certaines régions dans le dataSet de base.
+
+>Ici on perd toute information relative aux origines.
+Quand on ne supprime pas les origines, on trouve des informations aberrantes comme de grosses distances entre la cuisine japonaise et Asiatique
+
+>On utilise la distance binnaire puisqu'on a des valeurs psuudo booléenne. Cela permet d'avoir des distances entre 0 et 1 ce qui est logique quant à la matrice de départ.
+
+###Question 8
 
 ```{r}
 
-ingredientClusters <- hclust(1 - TrecettesDist)
-plot(ingredientClusters)
+ingredientClusters <- hclust(recetteEchant.t.dist)
+plot(color_labels(ingredientClusters, k = 5))
+title("Clusterisation des ingrédients en 5 classes")
 ```
-Quand on ne supprime pas les origines, on a des trucs aberrants du genre grosse distance entre la cuisine japonaise et Asiatique
+
+> Ici, on observe une séparation sur 5 classes d'ingrédients. On essaye par la suite la même méthode sur 6 classes :
 
 ```{r}
+ingredientClusters <- hclust(recetteEchant.t.dist)
+plot(color_labels(ingredientClusters, k = 6))
+title("Clusterisation des ingrédients en 6 classes")
+```
+
+> La Sous-catégorie apparue est d'une taille vraiment modeste. Aller plus loins en terme de séparation n'aurait pas grand intêret puisqu'on se retrouverait 
+
+```{r}
+par(mfrow=c(1,2))
+
 library(cluster)
 
-for(i in c(1:length(Trecettes[,1]))) {
-  for (j in c(1:length(Trecettes[1,])))
-    Trecettes[i,j] <- as.numeric(Trecettes[i,j])
-}
+recetteEchant.t <- recetteEchant.t[1:50,]
 
-#TODO faire ça sur plusieurs k différends et avec plusieurs itérations de k medoide a chaque fois
-Trecettes <- Trecettes[1:50,]
+recetteEchant.PAM3 <- cluster::pam(recetteEchant.t.dist,k = 3, metric = "manhattan", diss = T)
+cluster::clusplot(as.data.frame(t(recettes)),recetteEchant.PAM3$clustering, main = "Clusterisation des ingrédients en 3 classes") 
 
-# apply(Trecettes, 2, as.numeric)
-# sapply(Trecettes, as.numeric)
-class(Trecettes) <- "numeric"
-storage.mode(Trecettes) <- "numeric"
 
-ACPrecettesEchant <- prcomp(Trecettes)
-plot(ACPrecettesEchant$x[,c(1,2)], col=c("red", "green", "blue", "black",     "orange", "purple", "pink")[cluster::pam(TrecettesDist,3)$clustering])
+recetteEchant.PAM5 <- cluster::pam(recetteEchant.t.dist,k = 5, metric = "manhattan", diss = T)
+cluster::clusplot(as.data.frame(t(recettes)),recetteEchant.PAM5$clustering, main = "Clusterisation des ingrédients en 5 classes")
 ```
 
- 
+> Pour en arriver à cette figure, nous avons projeté la clusterisation PAM sur la transposé de la matrice agrégée vue en première partie. Cette transposée permet d'avoir une matrice agrégée sur les ingrédients. On ne peut pas le faire directement sur recetteEchant puisque son dimensionnement ne permet pas d'obtenir suffisemment d'observations pour appliquer princomp.
+
 ```{r}
-elbow <- (100 * (ACPrecettesEchant$sdev)^2 / sum(ACPrecettesEchant$sdev^2) )
-#TODO as an histogram
-plot(elbow)
+print(recetteEchant.PAM3$medoids)
 ```
+> Les 3 médoides trouvés sont oeuf Oignion et le gingembre
+
+```{r}
+print(recetteEchant.PAM5$medoids)
+```
+> Pour 5 classes, on ne trouve pas les mêmes médoïdes. On peut donc en déduire que les classes d'oignons et gingembre ont été "coupées" en deux.
+
 ##Exercice 2
 
+```{r}
+#Ce code est du à un problème d'import de la fonction
+distXY <- function(X, Y, M=diag(dim(X)[2]))
+{
+  X <- as.matrix(X)
+  Y <- as.matrix(Y)
+
+  if (!is.matrix(X))
+  {
+    X <- matrix(X, nrow=1)
+  }
+  if (!is.matrix(Y))
+  {
+    Y <- matrix(Y, nrow=1)
+  }
+  
+  nx <- dim(X)[1]
+  ny <- dim(Y)[1]
+  h.x <- rowSums((X%*%t(chol(M)))^2)
+  h.y <- rowSums((Y%*%t(chol(M)))^2)
+  ones.x <- rep(1, nx)
+  ones.y <- rep(1, ny)
+  
+  D2xy <- h.x %*% t(ones.y) - 2 * X %*% M %*% t(Y) + ones.x %*% t(h.y)
+}
+
+```
+
+
+```{r}
+adaptativeKmeans <- function(X, K, rhoKs = 0, niter = 100, ness = 1, epsilon = 0.00001) {
+
+  #Initialisation d'une grande valeure pour trouver un min
+  J <- 10000000
+  result <- list()
+  #Gestion de la valeure par défaut
+  if (rhoKs == 0) {
+    rhoKs <- array(1, K)
+  }
+
+  for (i in c(1 : ness)) {
+    #initialisation
+    muks <- X[sample(c(1:dim(X)[1]), size = K, replace = FALSE),]
+  
+    Vks <- list()
+    for (j in c(1:length(rhoKs))) {
+        append(Vks, diag(dim(X)[2]))
+        Vks[[j]] <- rhoKs[j] ** (-1 / dim(X)[2]) * diag(dim(X)[2])
+    }
+    itercount <- 0
+    muKsPrec <- muks + epsilon + 1
+    convCriteria <- 0
+    
+  
+    
+    #Computing convergence criteria
+    for (j in c(1: K)) {
+      convCriteria <- convCriteria + sum((muks[j,] - muKsPrec[j,])^2)
+    }
+    
+    while(itercount < niter && convCriteria > epsilon) {
+      
+      itercount <- itercount + 1  
+      
+      #Update Mahalanobis distance
+      cluster <- apply(X, MARGIN = 1, FUN = function(x) {
+        clusterDists <- list()
+        for(j in c(1: K)) {
+          
+          x <- matrix(x, nrow = dim(X)[2], ncol = 1)
+          y <- matrix(as.numeric(muks[j,]), nrow = dim(X)[2], ncol = 1)
+          distance <- distXY(t(x), t(y), solve(Vks[[j]]))
+          
+          append(clusterDists, array(0, dim = dim(distance)))
+          clusterDists[[j]] <- distance
+        }
+        which.min(clusterDists)
+      })
+
+      #Saving old centers
+      muKsPrec <- muks
+
+      #Updating Vks (Manahobis matrix) and centers
+      for(j in c(1: K)) {
+        Pk <- as.matrix(X[cluster == j,], dimnames = NULL)
+        muks[j,] <- apply(Pk, MARGIN = 2, mean)
+        mu <- matrix(muks[j,], nrow = dim(X)[2], ncol = 1, dimnames = NULL)
+  
+        Vk <- apply(Pk, MARGIN = 1, FUN = function(x) {
+          Xmat <- matrix(x, nrow = dim(X)[2], ncol = 1, dimnames = NULL)
+
+          tmp_diff <- (as.numeric(Xmat) - as.numeric(mu))
+          tmp_diff <- matrix(tmp_diff, nrow = dim(X)[2], ncol = 1)
+          tmp_diff <- tmp_diff %*% t(tmp_diff)
+        })
+        #############################################
+        #BUG Here : sometimes, rowMean can't compute anything and crashes
+        rMeanVk <- matrix(rowMeans(x = Vk), ncol = dim(X)[2], nrow = dim(X)[2])
+        Vk <- matrix(rMeanVk, ncol = dim(X)[2], nrow = dim(X)[2])
+        #############################################
+        
+        Vks[[j]] <- ( (rhoKs[j] * det(Vk))^(-1/dim(X)[2]) ) * Vk
+      }
+
+      #Calculate Convergence criteria
+      convCriteria <- 0
+      
+      for (j in c(1: K)) {
+        convCriteria <- convCriteria + sum((muks[j,] - muKsPrec[j,])^2)
+      }
+
+      #Calculate totalDist
+      dtot <- array(0, K)
+      for(j in c(1: K)) {
+        Pk <- as.matrix(X[cluster == j,])
+        dtot[j] <- sum(apply(Pk, MARGIN = 1, FUN = function(x) {
+          x <- matrix(x, nrow = dim(X)[2], ncol = 1)
+          y <- matrix(as.numeric(muks[j,]), nrow = dim(X)[2], ncol = 1)
+          distXY(t(x), t(y), solve(Vks[[j]]))
+        }))
+      }
+    }
+    Jprec <- J
+    J <- sum(dtot)
+    if(J < Jprec) {
+      result <- list("J" = J,"i" = i,"cluster" = cluster,"centers" = muks,"CovMatrices" = Vks)
+    }
+  }
+  return(result)
+}
+
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+X <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/Synth1.csv", header=T, row.names=1)
+z <- X[,3]
+X <- X[,-3]
+
+plot(X, col = c("red", "blue")[kmeans(X, 2)$cluster], main = "Synth 1 K-means")
+plot(X, col = c("red", "blue")[adaptativeKmeans(X, 2)$cluster], main = "Synth 1 Adaptative K-means")
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+X <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/Synth2.csv", header=T, row.names=1)
+z <- X[,3]
+X <- X[,-3]
+
+plot(X, col = c("red", "blue")[kmeans(X, 2)$cluster], main = "Synth 2 K-means")
+plot(X, col = c("red", "blue")[adaptativeKmeans(X, 2, ness = 3, niter = 200)$cluster], main = "Synth 2 Adaptative K-means")
+
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+X <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/Synth3.csv", header=T, row.names=1)
+z <- X[,3]
+X <- X[,-3]
+
+plot(X, col = c("red", "blue")[kmeans(X, 2)$cluster], main = "Synth 3 K-means")
+plot(X, col = c("red", "blue")[adaptativeKmeans(X, 2)$cluster], main = "Synth 3 Adaptative K-means")
+
+```
+
+> On constate des differences de clusterisation entre les deux algorithmes. Avec les distances adaptatives, la "courbe" de séparation entre les deux clusters ne semble pas être plane.
+
+```{r}
+par(mfrow=c(2,2))
+
+data(iris)
+X <- iris[,1:4]
+z <- iris[,5]
+  
+ACPIris <- princomp(X)
+
+for (i in c(2:3)) {
+  km <- kmeans(X, i)
+  plot(ACPIris$scores[,1:2], col = c("red", "blue", "green", "black", "orange")[km$cluster])
+  title(toString(km$tot.withinss))
+  
+  akm <- adaptativeKmeans(X, i)
+  plot(ACPIris$scores[,1:2], col = c("red", "blue", "green", "black", "orange")[akm$cluster])
+  title(akm$J)
+}
+```
+
+
+```{r}
+par(mfrow=c(2,2))
+
+for (i in c(4:5)) {
+  km <- kmeans(X, i)
+  plot(ACPIris$scores[,1:2], col = c("red", "blue", "green", "black", "orange")[km$cluster])
+  title(toString(km$tot.withinss))
+  
+  akm <- adaptativeKmeans(X, i, ness = 1)
+  plot(ACPIris$scores[,1:2], col = c("red", "blue", "green", "black", "orange")[akm$cluster])
+  title(akm$J)
+}
+```
+
+> A gauche les k-means Classiques et à droites leurs équivalents avec les Kmedoides
+On remarque que les sommes des distances intraclasses sont plus faibles pour le k-means adaptatifs
+Des groupes se chevauchent, cela est une conséquence de l'ACP puisque les axes n'expliquent pas à eux seuls toute l'inertie prise en compote par les k-Means adaptatifs
+
+> A noter que plus on augmente le nombre de classes, plus il y a un risque que l'algorithme n'arrive pas a inverser certaines matrices et crash. Cela est du au fait que des classes plus petites se retrouvent parfois avec une seul valeure, ce que R semble avoir du mal à accepter
+
+```{r}
+
+Spam <- read.csv("/home/arnaud/Desktop/SY09P1/donnees/donnees/spam.csv", header=T, row.names=1)
+X <- Spam[,-58]
+z <- Spam[,58]
+
+
+X <- scale(X)
+
+X <- X[sample(c(1:dim(X)[1]), size = 300, replace = FALSE),]
+
+ACPSpam <- princomp(X)
+
+plot(ACPSpam$scores[,1:2])
+
+```
+
+> L'ACP classique ne va pas permettre de visualiser correctement les différends groupes.
+
+```{r}
+spamPlot <- ACPSpam$scores[,1:2]
+
+spamPlot <- spamPlot - colMeans(spamPlot)
+
+dist <- spamPlot[,1] * spamPlot[,1] + spamPlot[,2] * spamPlot[,2]
+
+dist <- matrix(dist, ncol = 1)
+
+spamPlot <- as.matrix(spamPlot)
+
+spamPlot <- cbind(spamPlot, dist)
+
+indexesToRemove <- order(spamPlot[,3],decreasing = TRUE)[1:30]
+
+indexesToRemove <- - indexesToRemove
+
+spamPlot <- spamPlot[indexesToRemove,]
+XAdapted = X[indexesToRemove,]
+
+plot(spamPlot, col = c("red", "blue")[adaptativeKmeans(ACPSpam$scores[indexesToRemove,1:20], 2, ness = 3)$cluster], main = "Adaptative K-Means sur les Spams")
+```
+
+> On commence par calculer la moyenne des deux premiers composants de l'ACP, puis on centre ces deux composants. Ensuite, on enlève les valeurs extrèmes pour mieux visualiser le graphique.
+
+> On applique l'algorithme directement sur le retour de l'ACP défaite des ses valeurs que l'on sait extrême. On applique l'algorithme les n premiers composants de l'ACP, En effet, passé un certain stade, les valeurs sont si petites qu'elles sont confondues avec 0. La matrice n'est plus définie posititve et l'algorithme crash. Une valeur de 20 permet dejà d'expliquer une bonne partie de la varaince.
+
+> Il est compliqué de travailler sur ce Dataset puisque de nombreux facteurs entrent en jeux, certains rendant la matrice colinéaire et empêchant le bon déroulement de AdaptativeKmMean. On pourrait essayer de ne garder que les composantes a haute variance pour faire l'ACP.
+
+## Justification
+
+```{r}
+
+```
 
 
 
